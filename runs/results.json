@@ -1,0 +1,28 @@
+{
+  "snn": {
+    "threshold": 0.8999999999999999,
+    "recall": 0.8844444444444445,
+    "precision": 0.9851485148514851,
+    "f1": 0.9320843091334895,
+    "false_alarm_rate": 0.013333333333333334,
+    "accuracy": 0.9355555555555556,
+    "median_delay_ms": 72.0,
+    "mean_delay_ms": 94.89447236180905,
+    "p90_delay_ms": 178.00000000000009,
+    "false_alarm_rate_quiet": 0.0,
+    "false_alarm_rate_factory": 0.022556390977443608
+  },
+  "cnn": {
+    "threshold": 0.98,
+    "recall": 0.9911111111111112,
+    "precision": 0.9409282700421941,
+    "f1": 0.9653679653679654,
+    "false_alarm_rate": 0.06222222222222222,
+    "accuracy": 0.9644444444444444,
+    "median_delay_ms": 46.0,
+    "mean_delay_ms": 53.71300448430493,
+    "p90_delay_ms": 69.80000000000001,
+    "false_alarm_rate_quiet": 0.03260869565217391,
+    "false_alarm_rate_factory": 0.08270676691729323
+  }
+}
