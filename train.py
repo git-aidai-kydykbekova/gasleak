@@ -13,12 +13,17 @@ from gasleak.models import LeakSNN, CausalCNN
 GRACE = 30   # ms
 
 
+def dense_input(L):
+    """CNN input [N,T,32] from band levels [N,T,16]: level above the pre-roll floor + scaled level."""
+    floor = np.median(L[:, :100], axis=1, keepdims=True)
+    return np.concatenate([L - floor, (L + 60) / 20], -1).astype(np.float32)
+
+
 def load(path="data/synth"):
     d = np.load(f"{path}/dataset.npz")
     meta = pd.read_csv(f"{path}/meta.csv")
     L = d["levels"].astype(np.float32)
-    floor = np.median(L[:, :100], axis=1, keepdims=True)
-    dense = np.concatenate([L - floor, (L + 60) / 20], -1)          # CNN input [N,T,32]
+    dense = dense_input(L)                                             # CNN input [N,T,32]
     ev = d["events"].astype(np.float32)                                # SNN input [N,T,32]
     T = L.shape[1]
     t = np.arange(T)[None]
@@ -53,8 +58,8 @@ def run_epoch(model, X, Y, M, idx, bs, opt=None, kind="snn"):
     return tot / n
 
 
-def fit(kind, meta, X, Y, M, epochs, bs, lr, out):
-    torch.manual_seed(0); np.random.seed(0)
+def fit(kind, meta, X, Y, M, epochs, bs, lr, out, seed=0):
+    torch.manual_seed(seed); np.random.seed(seed)
     model = LeakSNN() if kind == "snn" else CausalCNN()
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, epochs)
@@ -78,9 +83,12 @@ if __name__ == "__main__":
     ap.add_argument("--epochs", type=int, default=25)
     ap.add_argument("--bs", type=int, default=32)
     ap.add_argument("--lr", type=float, default=2e-3)
-    ap.add_argument("--out", default="runs")
+    ap.add_argument("--seed", type=int, default=0, help="init / batch-order seed (data split is fixed)")
+    ap.add_argument("--out", default=None, help="default: runs/seeds/<seed>")
+    ap.add_argument("--threads", type=int, default=os.cpu_count())
     a = ap.parse_args()
-    os.makedirs(a.out, exist_ok=True)
-    torch.set_num_threads(os.cpu_count())
+    out = a.out or f"runs/seeds/{a.seed}"
+    os.makedirs(out, exist_ok=True)
+    torch.set_num_threads(a.threads)
     meta, ev, dense, y, mask = load()
-    fit(a.model, meta, ev if a.model == "snn" else dense, y, mask, a.epochs, a.bs, a.lr, a.out)
+    fit(a.model, meta, ev if a.model == "snn" else dense, y, mask, a.epochs, a.bs, a.lr, out, a.seed)

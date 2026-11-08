@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+# large / regenerable data (python build_dataset.py, python quiescent.py)
+data/synth/dataset.npz
+data/quiescent/
+# training console logs (per-seed logs are kept in runs/seeds/<seed>/)
+runs/seeds_run.log
+# C++ host test binary
+/host_test
+# IDE
+.idea/workspace.xml
+.idea/shelf/
+.DS_Store

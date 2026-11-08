@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "author": "Aidai Kydykbekova",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-s3-devkitc-1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-led", "id": "led_alarm", "top": -80, "left": 180, "attrs": { "color": "red", "label": "LEAK" } },
+    { "type": "wokwi-led", "id": "led_listen", "top": -80, "left": 240, "attrs": { "color": "green", "label": "OK" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": 20, "left": 170, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": 20, "left": 230, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-pushbutton", "id": "btn_next", "top": 140, "left": 180, "attrs": { "color": "blue", "label": "NEXT" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:4", "r1:2", "red", [] ],
+    [ "r1:1", "led_alarm:A", "red", [] ],
+    [ "led_alarm:C", "esp:GND.1", "black", [] ],
+    [ "esp:5", "r2:2", "green", [] ],
+    [ "r2:1", "led_listen:A", "green", [] ],
+    [ "led_listen:C", "esp:GND.1", "black", [] ],
+    [ "esp:6", "btn_next:1.l", "blue", [] ],
+    [ "btn_next:2.l", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}

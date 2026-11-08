@@ -39,12 +39,12 @@ def _norm(x):
     return x / (np.sqrt(np.mean(x ** 2)) + 1e-12)
 
 
-def background(rng, kind):
+def background(rng, kind, n=N):
     """kind: 'quiet' | 'factory'.  Returns background with unit-ish band power scale applied later."""
-    t = np.arange(N) / FS
-    x = np.zeros(N)
+    t = np.arange(n) / FS
+    x = np.zeros(n)
     # broadband pink noise (falls off -> little ultrasonic energy)
-    x += _norm(pink_noise(rng, N)) * (0.3 if kind == "quiet" else 1.0)
+    x += _norm(pink_noise(rng, n)) * (0.3 if kind == "quiet" else 1.0)
     if kind == "factory":
         # rotating machinery: fundamental + harmonics, gear-mesh tone
         f0 = rng.uniform(20, 120)
@@ -53,25 +53,28 @@ def background(rng, kind):
         fg = rng.uniform(1_000, 8_000)
         x += 0.3 * np.sin(2 * np.pi * fg * t) * (1 + 0.3 * np.sin(2 * np.pi * f0 * t))
         # impacts / clanks: decaying resonances
-        for _ in range(rng.poisson(3)):
-            t0 = rng.integers(0, N - 4800)
+        for _ in range(rng.poisson(3 * n / N)):         # ~3 impacts per second
+            t0 = rng.integers(0, n - 4800)
             fr = rng.uniform(2_000, 25_000)
             L = rng.integers(1000, 4800)
             tt = np.arange(L) / FS
             x[t0:t0 + L] += rng.uniform(0.5, 3) * np.exp(-tt * rng.uniform(80, 400)) * np.sin(2 * np.pi * fr * tt)
     # broadband ultrasonic floor (electronics / air flow), small
-    x += 0.02 * rng.standard_normal(N)
+    x += 0.02 * rng.standard_normal(n)
     return x
 
 
-def ultrasonic_distractors(rng, prob_burst, prob_tone):
-    """Hard negatives in the ultrasonic band. Returned un-scaled."""
-    d = np.zeros(N)
-    t = np.arange(N) / FS
-    if rng.random() < prob_burst:            # pneumatic exhaust / valve hiss bursts (short!)
+def ultrasonic_distractors(rng, prob_burst, prob_tone, n=N):
+    """Hard negatives in the ultrasonic band. Returned un-scaled.
+    Bursts: per second of signal, with probability prob_burst, 1-3 bursts.  Tone: whole signal."""
+    d = np.zeros(n)
+    t = np.arange(n) / FS
+    for _ in range(max(1, round(n / N))):
+        if rng.random() >= prob_burst:       # pneumatic exhaust / valve hiss bursts (short!)
+            continue
         for _ in range(rng.integers(1, 4)):
             L = int(rng.uniform(0.01, 0.08) * FS)
-            t0 = rng.integers(0, N - L)
+            t0 = rng.integers(0, n - L)
             lo = rng.uniform(18_000, 30_000)
             sos = signal.butter(2, (lo, min(lo + rng.uniform(8_000, 20_000), 47_000)), "bandpass", fs=FS, output="sos")
             env = np.hanning(L) ** 0.5
@@ -100,12 +103,18 @@ def leak(rng, onset_s, pressure):
 LEVELS = {"quiet": -40.0, "factory": (-28.0, -12.0)}
 
 
-def make_clip(rng, *, label, scene, snr_db=None, pressure=None, onset_s=None):
-    bg = background(rng, scene)
+def make_clip(rng, *, label, scene, snr_db=None, pressure=None, onset_s=None, n=N, level_db=None):
+    """n: length in samples (long no-leak recordings: n > N).  level_db: fixed background level
+    in the ultrasonic band instead of the scene's default / random range."""
+    assert label == 0 or n == N, "leak clips are 1 s long"
+    bg = background(rng, scene, n)
     bg += ultrasonic_distractors(rng, prob_burst=0.15 if scene == "quiet" else 0.6,
-                                 prob_tone=0.05 if scene == "quiet" else 0.25)
+                                 prob_tone=0.05 if scene == "quiet" else 0.25, n=n)
     # scale background to target absolute ultrasonic level
-    lvl = LEVELS[scene] if scene == "quiet" else rng.uniform(*LEVELS[scene])
+    if level_db is not None:
+        lvl = level_db
+    else:
+        lvl = LEVELS[scene] if scene == "quiet" else rng.uniform(*LEVELS[scene])
     bg *= np.sqrt(10 ** (lvl / 10) / band_power(bg))
     x = bg.copy()
     if label == 1:
